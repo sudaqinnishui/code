@@ -1,0 +1,110 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayDeque;
+
+public class Main {
+
+	static Tree tree[] = new Tree[1000001];// 大小根据题目来设计
+
+	static int tot = 0; // tot:字典树内存池大小
+
+	// 字典树定义
+	static class Tree {
+		int next[] = new int[26];
+		int fail;
+		int num;
+	}
+
+	static void insert(char[] s) {
+		int p = 0; // 从根节点出发
+
+		for (int i = 0; i < s.length; i++) {
+			if (tree[p].next[s[i] - 'a'] == 0) // 如果当前节点的s[i]-a下标没有节点，则要新建
+			{
+				tree[p].next[s[i] - 'a'] = ++tot;
+				tree[tot] = new Tree();
+			}
+
+			p = tree[p].next[s[i] - 'a'];
+
+		}
+
+		tree[p].num++; // 不为0的节点肯定是单词，大于1的节点说明有重复
+
+	}
+
+	// ac自动机的核心，找失配的上一个节点
+	static void getFail() {
+
+		ArrayDeque<Integer> q = new ArrayDeque<>();
+		q.add(0);
+
+		// 注意，一定要设置根节点为特殊的值，这里我设置-1，也可以是其他的，只要不和tot内存池的值冲突
+		tree[0].fail = -1;
+
+		while (!q.isEmpty()) {
+			int p = q.poll();
+
+			for (int i = 0; i < 26; i++) {
+				if (tree[p].next[i] != 0) {
+					int y = tree[p].next[i]; // 取p节点的i节点
+					int fail = tree[p].fail; // 取父亲节点的适配地址
+
+					// 情况一：根节点，没有在上面的fail了，情况二:当前fail没有i的儿子
+					while (fail != -1 && tree[fail].next[i] == 0)
+						fail = tree[fail].fail; // 没有就改成父亲的父亲的fail
+
+					if (fail == -1)
+						tree[y].fail = 0; // 等于-1表示，没有失配值，只能从根节点才能找到
+					else
+						tree[y].fail = tree[fail].next[i]; // 有就赋给fail->next[i]
+
+					q.add(y);
+				}
+			}
+
+		}
+	}
+
+	static int getAnt(int p) {
+		int ans = 0;
+		while (tree[p].num != 0) { // 如果当前节点的num！=0 ，则有，否则退出
+			ans += tree[p].num;
+			tree[p].num = 0; //记得设置为0
+			p = tree[p].fail;
+		}
+		return ans;
+	}
+
+	static int query(char[] s) {
+		int ans = 0;
+		int p = 0;
+		for (int i = 0; i < s.length; i++) {
+			int c = s[i] - 'a';
+
+			while (tree[p].next[c] == 0 && tree[p].fail != -1)
+				p = tree[p].fail;
+
+			// 如果p->next[c]不为0，则p不是根
+			if (tree[p].next[c] != 0)
+				p = tree[p].next[c];
+			else // 否则是根，不需要下面的操作，continue就行了
+				continue;
+
+			ans += getAnt(p);
+
+		}
+		return ans;
+	}
+
+	public static void main(String[] args) throws IOException {
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		int n = Integer.parseInt(reader.readLine().trim()); // 输入匹配的串
+		tree[0] = new Tree(); // 初始化根节点
+		for (int i = 0; i < n; i++)
+			insert(reader.readLine().trim().toCharArray()); // 插入字典树
+		getFail(); // 获取fail的值
+		System.out.println(query(reader.readLine().toCharArray())); // 查询结果
+	}
+}
